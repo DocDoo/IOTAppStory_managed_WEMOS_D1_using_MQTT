@@ -52,19 +52,18 @@ bool SendMQTTMessage(char Message[]);
 IOTAppStory IAS(COMPDATE, MODEBUTTON);                      // Initialize IotAppStory
 
 // ================================================ EXAMPLE VARS =========================================
-// Used to detach the Doorbell sensor interrupt for 4 secs when activated
-unsigned long DoorbellSensorTimeout;
-unsigned long MQTTConnectionFailedTimeout;
-bool InteruptAttached = false;
-bool DoorbellButtonPressedProcessingInProgress = false;
+unsigned long DoorbellSensorTimeout;                    // Detach the Doorbell sensor interrupt for 4 secs when activated
+unsigned long MQTTConnectionFailedTimeout;              // Determine if MQTT connection attempt has timed out
+bool InteruptAttached = false;                          // Determine if the interrupt is currently attached
+bool DoorbellButtonPressedProcessingInProgress = false; // Determine if we are currently processing a Dorbell button pressed event
 
 // We want to be able to edit these example variables below from the wifi config manager
 // Currently only char arrays are supported.
 // Use functions like atoi() and atof() to transform the char array to integers or floats
 // Use IAS.dPinConv() to convert Dpin numbers to integers (D6 > 14)
 
-char* WiFi_SSID        = "<WiFi SSID>";
-char* WiFi_Password    = "<WiFi Pwd>";
+char* WiFi_SSID        = "<WiFi SSID>";                 // INPUT NEEDED: I'm not sure how I need to handle WiFi in the non-IAS
+char* WiFi_Password    = "<WiFi Pwd>";                  // INPUT NEEDED: part of the sketch as IAS seems already to have WiFi initialized
 char* MQTT_Broker_IP   = "<MQTT Broker IP>";
 char* MQTT_Broker_Port = "0000";
 char* MQTT_Username    = "<MQTT Broker Username>";
@@ -74,14 +73,15 @@ char* MQTT_Password    = "<MQTT Broker Password>";
 // ================================================ SETUP ================================================
 void setup() {
   Serial.println("Setup has begun");
-  /* TIP! delete lines below when not used */
-  IAS.preSetDeviceName("HGV10_Fordor_Doorbell");                       // preset deviceName this is also your MDNS responder: http://virginsoil.local
+
+  IAS.preSetDeviceName("HGV10_Fordor_Doorbell");        // preset deviceName, this is also your MDNS responder
 
   IAS.addField(MQTT_Broker_IP, "MQTT Broker IP address", 17, 'L');
   IAS.addField(MQTT_Broker_Port, "MQTT Broker Port", 7, 'N');
   IAS.addField(MQTT_Username, "MQTT Broker Username", 51, 'L');
   IAS.addField(MQTT_Password, "MQTT Broker Password", 51, 'L');
 
+  // Print the current build string
   Serial.print("Current app build : ");
   String version = build_str;
   Serial.println(version);
@@ -105,41 +105,7 @@ void setup() {
     /* TIP! You can use this callback to put your app on it's own configuration mode */
   });
   
-  /* 
-  IAS.onModeButtonNoPress([]() {
-    Serial.println(F(" Mode Button is not pressed."));
-    Serial.println(F("*-------------------------------------------------------------------------*"));
-  });
-  
-  IAS.onFirstBoot([]() {                              
-    Serial.println(F(" Run or display something on the first time this app boots"));
-    Serial.println(F("*-------------------------------------------------------------------------*"));
-  });
-
-  IAS.onFirmwareUpdateCheck([]() {
-    Serial.println(F(" Checking if there is a firmware update available."));
-    Serial.println(F("*-------------------------------------------------------------------------*"));
-  });
-
-  IAS.onFirmwareUpdateDownload([]() {
-    Serial.println(F(" Downloading and Installing firmware update."));
-    Serial.println(F("*-------------------------------------------------------------------------*"));
-  });
-
-  IAS.onFirmwareUpdateError([]() {
-    Serial.println(F(" Update failed...Check your logs"));
-    Serial.println(F("*-------------------------------------------------------------------------*"));
-  });
-
-  IAS.onConfigMode([]() {
-    Serial.println(F(" Starting configuration mode. Search for my WiFi and connect to 192.168.4.1."));
-    Serial.println(F("*-------------------------------------------------------------------------*"));
-  });
-  */
-
-  /* TIP! delete the lines above when not used */
- 
-  Serial.println("Starting IAS.begin('P')");
+  Serial.println("Doing IAS.begin('P')");
   IAS.begin('P');                                     // Optional parameter: What to do with EEPROM on First boot of the app? 'F' Fully erase | 'P' Partial erase(default) | 'L' Leave intact
 
   IAS.setCallHome(true);                              // Set to true to enable calling home frequently (disabled by default)
@@ -167,7 +133,7 @@ void setup() {
   attachInterrupt(DOORBELL_BUTTON_PIN, DoorbellButtonPressed, RISING);
   InteruptAttached = true;
   
-  // Publish that this device has booted
+  // Publish on MQTT topic, that this device has booted
   Serial.println("Publishing announcement of device boot");
   String bootMessage = "Wemos bootede: " + SketchVersion;
   int bootMessage_len = bootMessage.length() + 1; 
@@ -220,11 +186,11 @@ bool EnsureConnectionToWiFi() {
 }
 
 bool EnsureConnectionToMQTTBroker() {
-    // If MQTT address has not yet been set, enter Config Mode
+    // If MQTT port has not yet been set, assume the user needs to configure the device and enter Config Mode
   if ( atoi(MQTT_Broker_Port) == 0 ) {
     Serial.println("MQTT Broker IP address is not yet set, entering Config Mode...");
     IAS.espRestart('C');    
-  }
+  }  
   if (millis() - MQTTConnectionFailedTimeout > 4000) {
     Serial.println("MQTT connecting...");
     Serial.print("MQTT Username = ");
@@ -278,7 +244,6 @@ void loop() {
   IAS.loop();                                   // this routine handles the calling home functionality and reaction of the MODEBUTTON pin. If short press (<4 sec): update of sketch, long press (>7 sec): Configuration
 
   //-------- Your Sketch starts from here ---------------
-
   if ( DoorbellButtonPressedFlag ) {
     // Processing of the DoorbellButtonPressed event is under way. Deattach the interrupt to avoid more events until we are done processing this one and ready for the next event
     if (InteruptAttached) {
@@ -311,5 +276,4 @@ void loop() {
    
   // Check for incomming messages and retain the connection with the MQTT broker
   MQTTclient.loop();
-
 }
