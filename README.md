@@ -1,4 +1,4 @@
-# IoTAppStory-WEMOS_D5_to_MQTT
+# IOTAppStory_managed_WEMOS_D1_using_MQTT
  WEMOS D1 Mini based arduino solution converting 3.3V signal on D5 to MQTT message in configured MQTT topic and MQTT broker
 
 Detect 3.3V input on D5 on WEMOS D1 Mini and send a MQTT message on the topic "HGV10/Huset/Fordoer/Ringklokke" as a result.
